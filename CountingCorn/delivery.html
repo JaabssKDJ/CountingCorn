@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Counting Corn - Delivery Dispatch Portal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="bg-amber-600 text-white shadow-md sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+      <div class="flex items-center space-x-3">
+        <div class="bg-amber-500 p-2 rounded-lg text-amber-950 font-bold shadow-sm">
+          <i data-lucide="truck" class="w-6 h-6 inline-block"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-xl leading-tight">Counting Corn</h1>
+          <p class="text-xs text-amber-100">Sales & Delivery Dispatch Staff</p>
+        </div>
+      </div>
+
+      <button onclick="CountingCornApp.logout()" title="Logout" class="bg-amber-800 hover:bg-amber-900 text-amber-100 px-3.5 py-2 rounded-xl transition text-xs font-semibold flex items-center gap-1">
+        <i data-lucide="log-out" class="w-4 h-4"></i>
+        <span class="hidden sm:inline">Logout</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-6 flex-grow w-full space-y-6">
+    <div class="border-b pb-4">
+      <h2 class="text-2xl font-bold text-slate-900">Delivery Dispatch Center</h2>
+      <p class="text-slate-500 text-sm">Select pending dispatches, navigate using maps, and confirm cash collections.</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Order List -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm lg:col-span-1 space-y-4">
+        <h3 class="text-lg font-bold">Pending Dispatches</h3>
+        <div id="dispatch-list" class="space-y-3 max-h-[500px] overflow-y-auto"></div>
+      </div>
+
+      <!-- Leaflet Map & Actions -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm lg:col-span-2 space-y-4">
+        <h3 class="text-lg font-bold">Delivery Mapping (OpenStreetMap)</h3>
+        <div id="dispatch-map"></div>
+
+        <div id="dispatch-details" class="p-4 bg-slate-50 rounded-xl border border-slate-200 hidden">
+          <h4 class="font-bold text-slate-900 text-base" id="disp-order-id">Select an order</h4>
+          <p class="text-sm text-slate-600 mt-1" id="disp-address">Click an order on the left list to view route marker</p>
+          <div class="mt-4 flex flex-wrap gap-3">
+            <button onclick="updateDeliveryStatus('In Transit')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-4 py-2.5 rounded-xl font-semibold transition shadow-sm">Mark In Transit</button>
+            <button onclick="updateDeliveryStatus('Delivered')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-4 py-2.5 rounded-xl font-semibold transition shadow-sm">Mark Delivered & Paid</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div id="toast" class="hidden fixed bottom-5 right-5 z-50 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center space-x-3">
+    <i data-lucide="bell" class="w-5 h-5 text-amber-400"></i>
+    <span id="toast-msg">Notification</span>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    CountingCornApp.requireAuth('delivery');
+
+    let dispatchMap, dispatchMarker;
+    let selectedOrderId = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      initDispatchMap();
+      renderDispatchList();
+    });
+
+    function initDispatchMap() {
+      dispatchMap = L.map('dispatch-map').setView([8.4772, 124.6459], 13);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(dispatchMap);
+    }
+
+    function renderDispatchList() {
+      const state = CountingCornApp.getState();
+      const container = document.getElementById('dispatch-list');
+      container.innerHTML = state.orders.map(o => `
+        <div onclick="selectDispatchOrder('${o.id}')" class="p-3.5 rounded-xl border border-slate-200 hover:border-amber-500 cursor-pointer transition bg-slate-50">
+          <div class="flex justify-between items-center">
+            <span class="font-bold text-slate-900">${o.id}</span>
+            <span class="text-xs px-2.5 py-0.5 font-semibold rounded-full ${CountingCornApp.getBadgeClass(o.status)}">${o.status}</span>
+          </div>
+          <p class="text-xs text-slate-600 mt-1.5 font-medium">${o.customer}</p>
+          <p class="text-xs text-slate-500 mt-0.5">${o.address}</p>
+        </div>
+      `).join('');
+    }
+
+    function selectDispatchOrder(orderId) {
+      const state = CountingCornApp.getState();
+      const order = state.orders.find(o => o.id === orderId);
+      if (!order) return;
+
+      selectedOrderId = orderId;
+      document.getElementById('dispatch-details').classList.remove('hidden');
+      document.getElementById('disp-order-id').innerText = `${order.id} - ${order.customer}`;
+      document.getElementById('disp-address').innerText = `Address: ${order.address} | Total Cash Due: ₱${order.total.toFixed(2)}`;
+
+      if (dispatchMap) {
+        dispatchMap.setView([order.lat, order.lng], 15);
+        if (dispatchMarker) dispatchMap.removeLayer(dispatchMarker);
+        dispatchMarker = L.marker([order.lat, order.lng]).addTo(dispatchMap)
+          .bindPopup(`<b>${order.id}</b><br>${order.customer}<br>₱${order.total.toFixed(2)}`)
+          .openPopup();
+      }
+    }
+
+    function updateDeliveryStatus(status) {
+      if (!selectedOrderId) return;
+      const state = CountingCornApp.getState();
+      const order = state.orders.find(o => o.id === selectedOrderId);
+      if (order) {
+        order.status = status;
+        CountingCornApp.setState(state);
+        renderDispatchList();
+        CountingCornApp.showToast(`Order ${order.id} marked as ${status}`);
+      }
+    }
+  </script>
+</body>
+</html>

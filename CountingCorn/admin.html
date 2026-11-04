@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Counting Corn - Owner & Warehouse Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="bg-amber-600 text-white shadow-md sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+      <div class="flex items-center space-x-3">
+        <div class="bg-amber-500 p-2 rounded-lg text-amber-950 font-bold shadow-sm">
+          <i data-lucide="wheat" class="w-6 h-6 inline-block"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-xl leading-tight">Counting Corn</h1>
+          <p class="text-xs text-amber-100">Owner & Warehouse Administration</p>
+        </div>
+      </div>
+
+      <button onclick="CountingCornApp.logout()" title="Logout" class="bg-amber-800 hover:bg-amber-900 text-amber-100 px-3.5 py-2 rounded-xl transition text-xs font-semibold flex items-center gap-1">
+        <i data-lucide="log-out" class="w-4 h-4"></i>
+        <span class="hidden sm:inline">Logout</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="max-w-7xl mx-auto px-4 py-6 flex-grow w-full space-y-6">
+    <div class="border-b pb-4">
+      <h2 class="text-2xl font-bold text-slate-900">Farm Owner Dashboard</h2>
+      <p class="text-slate-500 text-sm">Monitor sales revenue, stock restocks, spoilage logs, and order dispatches.</p>
+    </div>
+
+    <!-- Key Metrics Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+        <p class="text-slate-500 text-xs font-semibold uppercase">Total Revenue</p>
+        <h3 id="stat-revenue" class="text-2xl font-bold text-slate-900 mt-1">₱0.00</h3>
+      </div>
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+        <p class="text-slate-500 text-xs font-semibold uppercase">Total Orders</p>
+        <h3 id="stat-orders" class="text-2xl font-bold text-slate-900 mt-1">0</h3>
+      </div>
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+        <p class="text-slate-500 text-xs font-semibold uppercase">Sellable Stock</p>
+        <h3 id="stat-stock" class="text-2xl font-bold text-amber-600 mt-1">0 kg</h3>
+      </div>
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+        <p class="text-slate-500 text-xs font-semibold uppercase">Spoilage Losses</p>
+        <h3 id="stat-spoilage" class="text-2xl font-bold text-red-600 mt-1">0 kg</h3>
+      </div>
+    </div>
+
+    <!-- Order Management Table -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+      <h3 class="text-lg font-bold mb-4">Incoming Customer Orders</h3>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead class="bg-slate-50 text-slate-500 border-b">
+            <tr>
+              <th class="p-3">Order ID</th>
+              <th class="p-3">Customer</th>
+              <th class="p-3">Items</th>
+              <th class="p-3">Total Amount</th>
+              <th class="p-3">Status</th>
+              <th class="p-3 text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody id="admin-orders-table">
+            <!-- Injected via JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Inventory Operations -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <!-- Restock Form -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+        <h3 class="text-lg font-bold mb-4 flex items-center gap-2 text-emerald-700">
+          <i data-lucide="plus-circle" class="w-5 h-5"></i> Record Harvest / Restock
+        </h3>
+        <form onsubmit="handleRestock(event)" class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Select Product</label>
+            <select id="restock-product" class="w-full border rounded-xl p-2.5 text-sm bg-slate-50"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Quantity Added (kg)</label>
+            <input type="number" id="restock-qty" min="1" required class="w-full border rounded-xl p-2.5 text-sm" placeholder="e.g. 100">
+          </div>
+          <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 rounded-xl text-sm transition">
+            Add Stock
+          </button>
+        </form>
+      </div>
+
+      <!-- Spoilage Form -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+        <h3 class="text-lg font-bold mb-4 flex items-center gap-2 text-red-700">
+          <i data-lucide="trash-2" class="w-5 h-5"></i> Record Unsellable / Spoiled Corn
+        </h3>
+        <form onsubmit="handleSpoilage(event)" class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Select Product</label>
+            <select id="spoilage-product" class="w-full border rounded-xl p-2.5 text-sm bg-slate-50"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Quantity Lost (kg)</label>
+            <input type="number" id="spoilage-qty" min="1" required class="w-full border rounded-xl p-2.5 text-sm" placeholder="e.g. 15">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Reason for Loss</label>
+            <select id="spoilage-reason" class="w-full border rounded-xl p-2.5 text-sm bg-slate-50">
+              <option value="Overripe / Mold">Overripe / Mold</option>
+              <option value="Pest Damage">Pest Damage</option>
+              <option value="Transport Damage">Transport Damage</option>
+            </select>
+          </div>
+          <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2.5 rounded-xl text-sm transition">
+            Record Loss
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Audit Logs -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+      <h3 class="text-lg font-bold mb-4">Inventory Audit Logs</h3>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead class="bg-slate-50 text-slate-500 border-b">
+            <tr>
+              <th class="p-3">Timestamp</th>
+              <th class="p-3">Type</th>
+              <th class="p-3">Product</th>
+              <th class="p-3">Quantity</th>
+              <th class="p-3">Details</th>
+            </tr>
+          </thead>
+          <tbody id="inventory-audit-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <div id="toast" class="hidden fixed bottom-5 right-5 z-50 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center space-x-3">
+    <i data-lucide="bell" class="w-5 h-5 text-amber-400"></i>
+    <span id="toast-msg">Notification</span>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    CountingCornApp.requireAuth('admin');
+
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      refreshDashboard();
+    });
+
+    function refreshDashboard() {
+      const state = CountingCornApp.getState();
+
+      const totalRev = state.orders.reduce((sum, o) => sum + o.total, 0);
+      const totalStock = state.products.reduce((sum, p) => sum + p.stock, 0);
+      const totalSpoilage = state.auditLogs.filter(l => l.type === 'Spoilage').reduce((sum, l) => sum + l.qty, 0);
+
+      document.getElementById('stat-revenue').innerText = `₱${totalRev.toFixed(2)}`;
+      document.getElementById('stat-orders').innerText = state.orders.length;
+      document.getElementById('stat-stock').innerText = `${totalStock} kg`;
+      document.getElementById('stat-spoilage').innerText = `${totalSpoilage} kg`;
+
+      // Render Orders
+      const orderTable = document.getElementById('admin-orders-table');
+      orderTable.innerHTML = state.orders.map(o => `
+        <tr class="border-b">
+          <td class="p-3 font-bold">${o.id}</td>
+          <td class="p-3">${o.customer}</td>
+          <td class="p-3 text-xs">${o.items.map(i => `${i.name} (${i.qty})`).join(', ')}</td>
+          <td class="p-3 font-semibold">₱${o.total.toFixed(2)}</td>
+          <td class="p-3"><span class="px-2.5 py-1 text-xs font-semibold rounded-full ${CountingCornApp.getBadgeClass(o.status)}">${o.status}</span></td>
+          <td class="p-3 text-right space-x-1">
+            <button onclick="updateOrderStatus('${o.id}', 'Processing')" class="text-xs bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-lg">Process</button>
+            <button onclick="updateOrderStatus('${o.id}', 'Dispatched')" class="text-xs bg-amber-100 text-amber-800 hover:bg-amber-200 px-2.5 py-1 rounded-lg">Dispatch</button>
+          </td>
+        </tr>
+      `).join('');
+
+      // Render Options
+      const options = state.products.map(p => `<option value="${p.id}">${p.name} (${p.stock} ${p.unit} left)</option>`).join('');
+      document.getElementById('restock-product').innerHTML = options;
+      document.getElementById('spoilage-product').innerHTML = options;
+
+      // Render Logs
+      const auditTable = document.getElementById('inventory-audit-table');
+      auditTable.innerHTML = state.auditLogs.length === 0 
+        ? `<tr><td colspan="5" class="p-4 text-center text-slate-400">No audit logs recorded yet.</td></tr>`
+        : state.auditLogs.map(l => `
+          <tr class="border-b text-xs">
+            <td class="p-3 text-slate-500">${l.timestamp}</td>
+            <td class="p-3"><span class="px-2 py-0.5 rounded font-semibold ${l.type === 'Spoilage' ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}">${l.type}</span></td>
+            <td class="p-3 font-semibold">${l.product}</td>
+            <td class="p-3 font-bold">${l.qty} kg</td>
+            <td class="p-3 text-slate-600">${l.details}</td>
+          </tr>
+        `).join('');
+    }
+
+    function updateOrderStatus(orderId, status) {
+      const state = CountingCornApp.getState();
+      const order = state.orders.find(o => o.id === orderId);
+      if (order) {
+        order.status = status;
+        CountingCornApp.setState(state);
+        refreshDashboard();
+        CountingCornApp.showToast(`Order ${orderId} marked as ${status}`);
+      }
+    }
+
+    function handleRestock(e) {
+      e.preventDefault();
+      const state = CountingCornApp.getState();
+      const pId = document.getElementById('restock-product').value;
+      const qty = parseInt(document.getElementById('restock-qty').value);
+      const prod = state.products.find(p => p.id === pId);
+
+      if (prod && qty > 0) {
+        prod.stock += qty;
+        state.auditLogs.unshift({
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          type: 'Harvest Arrival',
+          product: prod.name,
+          qty: qty,
+          details: 'Fresh harvest arrival restocked.'
+        });
+        CountingCornApp.setState(state);
+        document.getElementById('restock-qty').value = '';
+        refreshDashboard();
+        CountingCornApp.showToast(`Added ${qty}kg to ${prod.name}`);
+      }
+    }
+
+    function handleSpoilage(e) {
+      e.preventDefault();
+      const state = CountingCornApp.getState();
+      const pId = document.getElementById('spoilage-product').value;
+      const qty = parseInt(document.getElementById('spoilage-qty').value);
+      const reason = document.getElementById('spoilage-reason').value;
+      const prod = state.products.find(p => p.id === pId);
+
+      if (prod && qty > 0) {
+        if (qty > prod.stock) return alert('Spoilage quantity cannot exceed current stock!');
+        prod.stock -= qty;
+        state.auditLogs.unshift({
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          type: 'Spoilage',
+          product: prod.name,
+          qty: qty,
+          details: `Reason: ${reason}`
+        });
+        CountingCornApp.setState(state);
+        document.getElementById('spoilage-qty').value = '';
+        refreshDashboard();
+        CountingCornApp.showToast(`Logged ${qty}kg loss for ${prod.name}`);
+      }
+    }
+  </script>
+</body>
+</html>

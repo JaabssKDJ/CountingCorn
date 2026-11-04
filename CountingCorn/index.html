@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Counting Corn - Login Portal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex items-center justify-center p-4">
+
+  <div class="bg-white text-slate-800 rounded-3xl shadow-2xl max-w-md w-full p-6 sm:p-8 border border-slate-100 relative overflow-hidden">
+    <!-- Header Banner -->
+    <div class="text-center mb-6">
+      <div class="inline-flex p-3 bg-amber-100 text-amber-600 rounded-2xl mb-3 shadow-inner">
+        <i data-lucide="wheat" class="w-10 h-10"></i>
+      </div>
+      <h1 class="text-2xl font-bold text-slate-900">Counting Corn</h1>
+      <p class="text-xs text-amber-700 font-semibold mt-0.5">Xavier University – CSCC 21 Project</p>
+      <p class="text-xs text-slate-500 mt-2">Select your portal role to continue</p>
+    </div>
+
+    <!-- Role Selection Tabs -->
+    <div class="grid grid-cols-3 gap-1.5 p-1.5 bg-slate-100 rounded-2xl mb-6 text-xs font-semibold">
+      <button type="button" onclick="selectRole('customer')" id="tab-customer" class="role-tab-btn py-2.5 rounded-xl bg-amber-600 text-white shadow">
+        <i data-lucide="shopping-cart" class="w-3.5 h-3.5 inline mr-1"></i>Customer
+      </button>
+      <button type="button" onclick="selectRole('admin')" id="tab-admin" class="role-tab-btn py-2.5 rounded-xl text-slate-600 hover:text-slate-900">
+        <i data-lucide="layout-dashboard" class="w-3.5 h-3.5 inline mr-1"></i>Admin
+      </button>
+      <button type="button" onclick="selectRole('delivery')" id="tab-delivery" class="role-tab-btn py-2.5 rounded-xl text-slate-600 hover:text-slate-900">
+        <i data-lucide="truck" class="w-3.5 h-3.5 inline mr-1"></i>Delivery
+      </button>
+    </div>
+
+    <!-- Login Form -->
+    <form onsubmit="handleLogin(event)" class="space-y-4">
+      <div id="password-field-container">
+        <label class="block text-xs font-bold text-slate-600 mb-1 uppercase tracking-wider">Access Password</label>
+        <div class="relative">
+          <input type="password" id="login-password" placeholder="Enter role password" class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 transition">
+          <i data-lucide="lock" class="w-4 h-4 absolute right-3.5 top-3.5 text-slate-400"></i>
+        </div>
+        <p id="password-hint" class="text-[11px] text-slate-400 mt-1.5 flex items-center gap-1">
+          <i data-lucide="info" class="w-3.5 h-3.5 shrink-0"></i>
+          <span id="hint-text">Customer access key: customer123 (or Guest login)</span>
+        </p>
+      </div>
+
+      <div id="login-error" class="hidden text-xs text-red-600 bg-red-50 p-3 rounded-xl border border-red-200 flex items-center gap-2">
+        <i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i>
+        <span id="login-error-msg">Invalid password for this role.</span>
+      </div>
+
+      <button type="submit" class="w-full bg-amber-600 hover:bg-amber-700 active:scale-[0.99] text-white font-bold py-3.5 rounded-xl shadow-lg shadow-amber-600/30 text-sm transition">
+        Enter Portal
+      </button>
+    </form>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    let activeRole = 'customer';
+
+    function selectRole(role) {
+      activeRole = role;
+      document.querySelectorAll('.role-tab-btn').forEach(btn => {
+        btn.classList.remove('bg-amber-600', 'text-white', 'shadow');
+        btn.classList.add('text-slate-600');
+      });
+
+      const activeBtn = document.getElementById(`tab-${role}`);
+      if (activeBtn) {
+        activeBtn.classList.add('bg-amber-600', 'text-white', 'shadow');
+        activeBtn.classList.remove('text-slate-600');
+      }
+
+      const hintText = document.getElementById('hint-text');
+      const passInput = document.getElementById('login-password');
+      document.getElementById('login-error').classList.add('hidden');
+
+      if (role === 'customer') {
+        hintText.innerText = "Customer access key: customer123 (or Guest login)";
+        passInput.placeholder = "Optional password";
+      } else if (role === 'admin') {
+        hintText.innerText = "Owner/Admin password: admin123";
+        passInput.placeholder = "Enter admin password";
+      } else if (role === 'delivery') {
+        hintText.innerText = "Delivery driver password: driver123";
+        passInput.placeholder = "Enter driver password";
+      }
+    }
+
+    function handleLogin(e) {
+      e.preventDefault();
+      const inputPass = document.getElementById('login-password').value.trim();
+      const errorEl = document.getElementById('login-error');
+
+      const passMap = {
+        customer: ["customer123", ""],
+        admin: ["admin123"],
+        delivery: ["driver123"]
+      };
+
+      if (passMap[activeRole].includes(inputPass)) {
+        CountingCornApp.setSession(activeRole);
+        window.location.href = `${activeRole}.html`;
+      } else {
+        errorEl.classList.remove('hidden');
+      }
+    }
+
+    // Auto redirect if already logged in
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      const session = CountingCornApp.getSession();
+      if (session) {
+        window.location.href = `${session.role}.html`;
+      }
+    });
+  </script>
+</body>
+</html>
