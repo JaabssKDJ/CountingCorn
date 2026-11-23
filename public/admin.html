@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Counting Corn - Admin & Inventory Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col">
+
+  <header class="bg-amber-600 text-white shadow-md sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+      <div class="flex items-center space-x-3">
+        <div class="bg-amber-500 p-2 rounded-lg text-amber-950 font-bold"><i data-lucide="wheat" class="w-6 h-6"></i></div>
+        <div>
+          <h1 class="font-bold text-xl">Counting Corn</h1>
+          <p id="user-role-badge" class="text-xs text-amber-100">Role: Admin</p>
+        </div>
+      </div>
+      <button onclick="CountingCornApp.logout()" class="bg-amber-800 hover:bg-amber-900 text-amber-100 px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1">
+        <i data-lucide="log-out" class="w-4 h-4"></i> Logout
+      </button>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-6 flex-grow w-full space-y-6">
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div class="bg-white p-5 rounded-2xl border shadow-sm">
+        <p class="text-slate-500 text-xs font-semibold uppercase">Total Revenue</p>
+        <h3 id="stat-revenue" class="text-2xl font-bold text-emerald-600 mt-1">₱0.00</h3>
+      </div>
+      <div class="bg-white p-5 rounded-2xl border shadow-sm">
+        <p class="text-slate-500 text-xs font-semibold uppercase">Completed Sales</p>
+        <h3 id="stat-sales" class="text-2xl font-bold text-slate-900 mt-1">0</h3>
+      </div>
+      <div class="bg-white p-5 rounded-2xl border shadow-sm">
+        <p class="text-slate-500 text-xs font-semibold uppercase">Total Orders</p>
+        <h3 id="stat-orders" class="text-2xl font-bold text-slate-900 mt-1">0</h3>
+      </div>
+      <div class="bg-white p-5 rounded-2xl border shadow-sm">
+        <p class="text-slate-500 text-xs font-semibold uppercase">Available Stock</p>
+        <h3 id="stat-stock" class="text-2xl font-bold text-amber-600 mt-1">0 kg</h3>
+      </div>
+      <div class="bg-white p-5 rounded-2xl border shadow-sm">
+        <p class="text-slate-500 text-xs font-semibold uppercase">Spoiled Corn</p>
+        <h3 id="stat-spoilage" class="text-2xl font-bold text-red-600 mt-1">0 kg</h3>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="bg-white rounded-2xl border p-6 shadow-sm">
+        <h3 class="text-lg font-bold mb-4 text-amber-700">Add New Corn Variety</h3>
+        <form onsubmit="addCornType(event)" class="space-y-3">
+          <input type="text" id="new-corn-name" placeholder="Variety Name (e.g. Purple Corn)" required class="w-full border rounded-xl p-2.5 text-sm">
+          <input type="number" id="new-corn-price" placeholder="Price per kg (₱)" min="1" required class="w-full border rounded-xl p-2.5 text-sm">
+          <button type="submit" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2.5 rounded-xl text-sm">Add Corn Type</button>
+        </form>
+      </div>
+
+      <div class="bg-white rounded-2xl border p-6 shadow-sm lg:col-span-2">
+        <h3 class="text-lg font-bold mb-4">Corn Types & Price History Tracker</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead class="bg-slate-50 text-slate-500 border-b">
+              <tr>
+                <th class="p-3">Variety</th>
+                <th class="p-3">Current Price</th>
+                <th class="p-3">Previous Prices</th>
+                <th class="p-3">Update Price</th>
+              </tr>
+            </thead>
+            <tbody id="corn-types-table"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="bg-white rounded-2xl border p-6 shadow-sm">
+        <h3 class="text-lg font-bold mb-4 text-emerald-700">Record New Harvest Batch</h3>
+        <form onsubmit="createHarvestBatch(event)" class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Select Corn Variety</label>
+            <select id="batch-corn-select" class="w-full border rounded-xl p-2.5 text-sm bg-slate-50"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Harvested Quantity (kg)</label>
+            <input type="number" id="batch-qty" min="1" required class="w-full border rounded-xl p-2.5 text-sm" placeholder="e.g. 200">
+          </div>
+          <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 rounded-xl text-sm">Save Harvest Batch</button>
+        </form>
+      </div>
+
+      <div class="bg-white rounded-2xl border p-6 shadow-sm">
+        <h3 class="text-lg font-bold mb-4 text-red-700">Record Spoiled Corn (By Batch)</h3>
+        <form onsubmit="logBatchSpoilage(event)" class="space-y-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Select Harvest Batch</label>
+            <select id="spoilage-batch-select" class="w-full border rounded-xl p-2.5 text-sm bg-slate-50"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Spoiled Quantity (kg)</label>
+            <input type="number" id="spoilage-qty" min="1" required class="w-full border rounded-xl p-2.5 text-sm" placeholder="e.g. 10">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Reason for Spoilage</label>
+            <div class="flex gap-2">
+              <select id="spoilage-reason-select" class="w-full border rounded-xl p-2.5 text-sm bg-slate-50"></select>
+              <button type="button" onclick="addNewReason()" class="bg-slate-800 text-white px-3 rounded-xl text-xs font-semibold shrink-0">+ New Reason</button>
+            </div>
+          </div>
+          <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2.5 rounded-xl text-sm">Record Spoilage</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl border p-6 shadow-sm">
+      <h3 class="text-lg font-bold mb-4">Harvest Batch & Spoilage Percentage Monitoring</h3>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead class="bg-slate-50 text-slate-500 border-b">
+            <tr>
+              <th class="p-3">Batch Code</th>
+              <th class="p-3">Corn Variety</th>
+              <th class="p-3">Initial Harvest</th>
+              <th class="p-3">Sellable Stock</th>
+              <th class="p-3">Spoiled Qty</th>
+              <th class="p-3">Spoilage Loss %</th>
+            </tr>
+          </thead>
+          <tbody id="batches-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl border p-6 shadow-sm">
+      <h3 class="text-lg font-bold mb-4">Customer Orders & Transaction Management</h3>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead class="bg-slate-50 text-slate-500 border-b">
+            <tr>
+              <th class="p-3">Order / Receipt</th>
+              <th class="p-3">Customer</th>
+              <th class="p-3">Items</th>
+              <th class="p-3">Total</th>
+              <th class="p-3">Payment</th>
+              <th class="p-3">Status</th>
+              <th class="p-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="admin-orders-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <div id="toast" class="hidden fixed bottom-5 right-5 z-50 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl">
+    <span id="toast-msg">Notification</span>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    const user = CountingCornApp.requireAuth(['Admin', 'Staff']);
+    document.getElementById('user-role-badge').innerText = `Logged in as: ${user.name} (${user.role})`;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      refreshDashboard();
+    });
+
+    async function refreshDashboard() {
+      const data = await CountingCornApp.fetchState();
+
+      const completedOrders = data.orders.filter(o => o.status === 'Completed');
+      const totalRev = completedOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+      const totalStock = data.batches.reduce((sum, b) => sum + b.sellableQty, 0);
+      const totalSpoilage = data.batches.reduce((sum, b) => sum + b.spoiledQty, 0);
+
+      document.getElementById('stat-revenue').innerText = `₱${totalRev.toFixed(2)}`;
+      document.getElementById('stat-sales').innerText = completedOrders.length;
+      document.getElementById('stat-orders').innerText = data.orders.length;
+      document.getElementById('stat-stock').innerText = `${totalStock} kg`;
+      document.getElementById('stat-spoilage').innerText = `${totalSpoilage} kg`;
+
+      document.getElementById('corn-types-table').innerHTML = data.catalog.map(c => {
+        const prev = c.priceHistory.length > 0 
+          ? c.priceHistory.map(h => `₱${h.previousPrice}`).join(' → ')
+          : 'Initial Price';
+        return `
+          <tr class="border-b">
+            <td class="p-3 font-bold">${c.img} ${c.name}</td>
+            <td class="p-3 font-bold text-amber-600">₱${c.currentPrice.toFixed(2)}</td>
+            <td class="p-3 text-xs text-slate-500">${prev}</td>
+            <td class="p-3 flex gap-2">
+              <input type="number" id="price-input-${c._id}" placeholder="New ₱" class="w-20 border rounded-lg px-2 py-1 text-xs">
+              <button onclick="updateCornPrice('${c._id}')" class="bg-slate-800 text-white text-xs px-2.5 py-1 rounded-lg">Update</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      document.getElementById('batch-corn-select').innerHTML = data.catalog.map(c => `<option value="${c._id}">${c.name}</option>`).join('');
+      document.getElementById('spoilage-batch-select').innerHTML = data.batches.map(b => `<option value="${b._id}">${b.batchCode} - ${b.cornName} (${b.sellableQty} kg sellable)</option>`).join('');
+      document.getElementById('spoilage-reason-select').innerHTML = data.reasons.map(r => `<option value="${r.reason}">${r.reason}</option>`).join('');
+
+      document.getElementById('batches-table').innerHTML = data.batches.map(b => `
+        <tr class="border-b">
+          <td class="p-3 font-bold">${b.batchCode}</td>
+          <td class="p-3">${b.cornName}</td>
+          <td class="p-3">${b.initialQty} kg</td>
+          <td class="p-3 font-bold text-emerald-600">${b.sellableQty} kg</td>
+          <td class="p-3 font-bold text-red-600">${b.spoiledQty} kg</td>
+          <td class="p-3"><span class="px-2 py-1 rounded-full text-xs font-bold ${b.spoilagePercentage > 10 ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'}">${b.spoilagePercentage}%</span></td>
+        </tr>
+      `).join('');
+
+      document.getElementById('admin-orders-table').innerHTML = data.orders.map(o => `
+        <tr class="border-b">
+          <td class="p-3"><div class="font-bold">${o.orderId}</div><div class="text-[11px] text-slate-400">${o.receiptNumber}</div></td>
+          <td class="p-3">${o.customerName}</td>
+          <td class="p-3 text-xs">${o.items.map(i => `${i.name} (${i.qty}kg)`).join(', ')}</td>
+          <td class="p-3 font-bold">₱${o.totalAmount.toFixed(2)}</td>
+          <td class="p-3"><span class="text-xs font-bold ${o.paymentStatus === 'Paid' ? 'text-emerald-600' : 'text-amber-600'}">${o.paymentStatus}</span></td>
+          <td class="p-3"><span class="px-2.5 py-1 text-xs font-semibold rounded-full ${CountingCornApp.getBadgeClass(o.status)}">${o.status}</span></td>
+          <td class="p-3 text-right space-x-1">
+            <button onclick="changeOrderStatus('${o._id}', 'Processing')" class="text-xs bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded">Confirm</button>
+            <button onclick="changeOrderStatus('${o._id}', 'Completed')" class="text-xs bg-emerald-100 text-emerald-800 hover:bg-emerald-200 px-2 py-1 rounded">Complete</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function addCornType(e) {
+      e.preventDefault();
+      await fetch('/api/corn-types', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: document.getElementById('new-corn-name').value,
+          currentPrice: document.getElementById('new-corn-price').value
+        })
+      });
+      e.target.reset();
+      refreshDashboard();
+      CountingCornApp.showToast('New corn variety added!');
+    }
+
+    async function updateCornPrice(id) {
+      const newPrice = document.getElementById(`price-input-${id}`).value;
+      if (!newPrice) return;
+      await fetch(`/api/corn-types/${id}/price`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newPrice })
+      });
+      refreshDashboard();
+      CountingCornApp.showToast('Price updated & history logged!');
+    }
+
+    async function createHarvestBatch(e) {
+      e.preventDefault();
+      await fetch('/api/batches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cornTypeId: document.getElementById('batch-corn-select').value,
+          initialQty: document.getElementById('batch-qty').value
+        })
+      });
+      e.target.reset();
+      refreshDashboard();
+      CountingCornApp.showToast('Harvest batch recorded!');
+    }
+
+    async function addNewReason() {
+      const reason = prompt('Enter new spoilage reason:');
+      if (!reason) return;
+      await fetch('/api/spoilage-reasons', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason })
+      });
+      refreshDashboard();
+      CountingCornApp.showToast('New spoilage reason added!');
+    }
+
+    async function logBatchSpoilage(e) {
+      e.preventDefault();
+      const res = await fetch('/api/spoilage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          batchId: document.getElementById('spoilage-batch-select').value,
+          qty: document.getElementById('spoilage-qty').value,
+          reason: document.getElementById('spoilage-reason-select').value
+        })
+      });
+      if (!res.ok) return alert('Spoilage exceeds sellable stock in this batch!');
+      e.target.reset();
+      refreshDashboard();
+      CountingCornApp.showToast('Batch spoilage recorded!');
+    }
+
+    async function changeOrderStatus(id, status) {
+      await fetch(`/api/orders/${id}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+      refreshDashboard();
+      CountingCornApp.showToast(`Order marked as ${status}. Inventory updated!`);
+    }
+  </script>
+</body>
+</html>
