@@ -32,6 +32,7 @@
   function getBadgeClass(status) {
     if (status === 'Pending') return 'badge-yellow';
     if (status === 'Completed') return 'badge-green';
+    if (status === 'Cancelled') return 'badge-red';
     if (status === 'In Transit' || status === 'Processing') return 'badge-blue';
     return 'bg-slate-100 text-slate-700';
   }

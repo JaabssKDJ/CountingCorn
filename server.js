@@ -77,7 +77,8 @@ const orderSchema = new mongoose.Schema({
   lat: Number,
   lng: Number,
   paymentStatus: { type: String, enum: ['Unpaid', 'Paid'], default: 'Unpaid' },
-  status: { type: String, enum: ['Pending', 'Processing', 'In Transit', 'Completed'], default: 'Pending' },
+  status: { type: String, enum: ['Pending', 'Processing', 'In Transit', 'Completed', 'Cancelled'], default: 'Pending' },
+  cancelReason: { type: String, default: '' },
   inventoryDeducted: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now }
 });
@@ -258,9 +259,26 @@ app.post('/api/orders', async (req, res) => {
 });
 
 app.put('/api/orders/:id/status', async (req, res) => {
-  const { status } = req.body;
+  const { status, cancelReason } = req.body;
   const order = await Order.findById(req.params.id);
   if (!order) return res.status(404).json({ error: 'Order not found' });
+
+  if (status === 'Cancelled') {
+    if (order.status === 'In Transit' || order.status === 'Completed') {
+      return res.status(400).json({ error: 'Cannot cancel an order already in transit or completed' });
+    }
+    if (order.inventoryDeducted) {
+      for (const item of order.items) {
+        const batch = await HarvestBatch.findOne({ cornName: item.name }).sort({ harvestDate: -1 });
+        if (batch) {
+          batch.sellableQty += item.qty;
+          await batch.save();
+        }
+      }
+      order.inventoryDeducted = false;
+    }
+    order.cancelReason = cancelReason || 'Cancelled by customer';
+  }
 
   if ((status === 'Processing' || status === 'Completed') && !order.inventoryDeducted) {
     for (const item of order.items) {
