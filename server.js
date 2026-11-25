@@ -83,12 +83,87 @@ const orderSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
+const salesReportSchema = new mongoose.Schema({
+  periodType: { type: String, enum: ['Daily', 'Monthly'], required: true },
+  periodKey: { type: String, required: true },
+  totalOrders: { type: Number, default: 0 },
+  completedOrders: { type: Number, default: 0 },
+  cancelledOrders: { type: Number, default: 0 },
+  totalKgSold: { type: Number, default: 0 },
+  totalRevenue: { type: Number, default: 0 },
+  generatedAt: { type: Date, default: Date.now }
+});
+
+salesReportSchema.index({ periodType: 1, periodKey: 1 }, { unique: true });
+
 const User = mongoose.model('User', userSchema);
 const CornType = mongoose.model('CornType', cornTypeSchema);
 const HarvestBatch = mongoose.model('HarvestBatch', batchSchema);
 const SpoilageReason = mongoose.model('SpoilageReason', spoilageReasonSchema);
 const SpoilageLog = mongoose.model('SpoilageLog', spoilageLogSchema);
 const Order = mongoose.model('Order', orderSchema);
+const SalesReport = mongoose.model('SalesReport', salesReportSchema);
+
+async function syncSalesReports() {
+  const orders = await Order.find();
+  const dailyMap = {};
+  const monthlyMap = {};
+
+  for (const o of orders) {
+    const dt = new Date(o.createdAt);
+    const yyyy = dt.getFullYear();
+    const mm = String(dt.getMonth() + 1).padStart(2, '0');
+    const dd = String(dt.getDate()).padStart(2, '0');
+
+    const dayKey = `${yyyy}-${mm}-${dd}`;
+    const monthKey = `${yyyy}-${mm}`;
+
+    if (!dailyMap[dayKey]) {
+      dailyMap[dayKey] = { totalOrders: 0, completedOrders: 0, cancelledOrders: 0, totalKgSold: 0, totalRevenue: 0 };
+    }
+    if (!monthlyMap[monthKey]) {
+      monthlyMap[monthKey] = { totalOrders: 0, completedOrders: 0, cancelledOrders: 0, totalKgSold: 0, totalRevenue: 0 };
+    }
+
+    const orderKg = o.items.reduce((sum, i) => sum + (i.qty || 0), 0);
+
+    dailyMap[dayKey].totalOrders += 1;
+    monthlyMap[monthKey].totalOrders += 1;
+
+    if (o.status === 'Completed') {
+      dailyMap[dayKey].completedOrders += 1;
+      dailyMap[dayKey].totalKgSold += orderKg;
+      dailyMap[dayKey].totalRevenue += o.totalAmount;
+
+      monthlyMap[monthKey].completedOrders += 1;
+      monthlyMap[monthKey].totalKgSold += orderKg;
+      monthlyMap[monthKey].totalRevenue += o.totalAmount;
+    } else if (o.status === 'Cancelled') {
+      dailyMap[dayKey].cancelledOrders += 1;
+      monthlyMap[monthKey].cancelledOrders += 1;
+    }
+  }
+
+  for (const [periodKey, stats] of Object.entries(dailyMap)) {
+    await SalesReport.findOneAndUpdate(
+      { periodType: 'Daily', periodKey },
+      { ...stats, generatedAt: new Date() },
+      { upsert: true, new: true }
+    );
+  }
+
+  for (const [periodKey, stats] of Object.entries(monthlyMap)) {
+    await SalesReport.findOneAndUpdate(
+      { periodType: 'Monthly', periodKey },
+      { ...stats, generatedAt: new Date() },
+      { upsert: true, new: true }
+    );
+  }
+
+  const daily = await SalesReport.find({ periodType: 'Daily' }).sort({ periodKey: -1 });
+  const monthly = await SalesReport.find({ periodType: 'Monthly' }).sort({ periodKey: -1 });
+  return { daily, monthly };
+}
 
 async function seedInitialData() {
   if (await User.countDocuments() === 0) {
@@ -118,6 +193,7 @@ async function seedInitialData() {
       { reason: 'Transport Damage' }
     ]);
   }
+  await syncSalesReports();
 }
 
 app.post('/api/login', async (req, res) => {
@@ -136,6 +212,7 @@ app.get('/api/state', async (req, res) => {
   const reasons = await SpoilageReason.find();
   const spoilageLogs = await SpoilageLog.find().sort({ loggedAt: -1 });
   const orders = await Order.find().sort({ createdAt: -1 });
+  const salesReports = await syncSalesReports();
 
   const catalog = cornTypes.map(ct => {
     const matchingBatches = batches.filter(b => b.cornName === ct.name);
@@ -143,7 +220,12 @@ app.get('/api/state', async (req, res) => {
     return { ...ct.toObject(), availableStock };
   });
 
-  res.json({ catalog, batches, reasons, spoilageLogs, orders });
+  res.json({ catalog, batches, reasons, spoilageLogs, orders, salesReports });
+});
+
+app.get('/api/reports/sales', async (req, res) => {
+  const reports = await syncSalesReports();
+  res.json(reports);
 });
 
 app.post('/api/corn-types', async (req, res) => {
@@ -255,6 +337,7 @@ app.post('/api/orders', async (req, res) => {
     paymentStatus: 'Unpaid'
   });
 
+  await syncSalesReports();
   res.json(newOrder);
 });
 
@@ -302,6 +385,7 @@ app.put('/api/orders/:id/status', async (req, res) => {
 
   order.status = status;
   await order.save();
+  await syncSalesReports();
   res.json(order);
 });
 
